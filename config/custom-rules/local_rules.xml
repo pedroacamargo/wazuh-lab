@@ -17,71 +17,200 @@
     <if_sid>31100</if_sid>
     <regex>\.%2e/|/%2e\.</regex>
     <description>HTTP request: url contains an encoded '..' segment</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web_attack,path_traversal,cve_2021_41773,initial_access,</group>
   </rule>
 
   <rule id="100175" level="7">
     <if_sid>31105</if_sid>
     <description>HTTP request: url contains a scripting expression pattern</description>
     <mitre>
+      <id>T1190</id>
       <id>T1059.007</id>
     </mitre>
+    <group>web_attack,xss,script_injection,initial_access,</group>
   </rule>
 
-  <rule id="100130" level="6">
+  <rule id="100130" level="10">
     <match>jndi:</match>
-    <description>Application log line contains the substring 'jndi:'</description>
+    <description>Possible Log4Shell payload: application log line contains 'jndi:'</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web_attack,log4shell,cve_2021_44228,rce,initial_access,</group>
   </rule>
 
+  <rule id="100131" level="10">
+    <if_sid>31100,31101,31108</if_sid>
+    <match>() { :;};</match>
+    <description>Possible Shellshock payload in HTTP request</description>
+    <mitre>
+      <id>T1190</id>
+      <id>T1059.004</id>
+    </mitre>
+    <group>web_attack,shellshock,cve_2014_6271,rce,initial_access,unix_shell,</group>
+  </rule>
+
+  <rule id="100200" level="10">
+    <if_sid>31100</if_sid>
+    <url>etc/passwd|etc/shadow</url>
+    <description>Possible Local File Inclusion or path traversal attempt</description>
+    <mitre>
+      <id>T1190</id>
+      <id>T1005</id>
+    </mitre>
+    <group>web_attack,lfi,path_traversal,cve_2021_41773,data_from_local_system,</group>
+  </rule>
+
+  
+  <!-- Local privilege escalation / post-exploitation signals    -->
   <rule id="100140" level="5">
     <match>pkexec</match>
     <description>System log: 'pkexec' substring observed</description>
+    <mitre>
+      <id>T1068</id>
+    </mitre>
+    <group>privilege_escalation,pkexec,polkit,</group>
   </rule>
 
-  <rule id="100150" level="8">
+  <rule id="100150" level="10">
     <if_sid>550,554</if_sid>
     <field name="file">/etc/passwd</field>
     <description>FIM: /etc/passwd file changed</description>
+    <mitre>
+      <id>T1098</id>
+      <id>T1136</id>
+    </mitre>
+    <group>fim,account_manipulation,create_account,persistence,privilege_escalation,</group>
   </rule>
 
+  <rule id="100170" level="5">
+    <match>tar</match>
+    <description>System log: tar invoked</description>
+    <mitre>
+      <id>T1560.001</id>
+    </mitre>
+    <group>collection,archive_collected_data,archive_via_utility,</group>
+  </rule>
+
+  <!-- CorpNet authentication rules -->
   <rule id="100165" level="3">
     <decoded_as>corpnet-login</decoded_as>
     <match>result=failure</match>
     <description>CorpNet Portal: login failed for user $(dstuser)</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>corpnet,authentication_failed,bruteforce,credential_access,</group>
   </rule>
 
   <rule id="100166" level="5">
     <decoded_as>corpnet-login</decoded_as>
     <match>result=success</match>
     <description>CorpNet Portal: login succeeded for user $(dstuser)</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>corpnet,authentication_success,valid_accounts,initial_access,</group>
   </rule>
 
   <rule id="100163" level="3">
     <if_sid>31101</if_sid>
     <url>/login</url>
     <description>HTTP: POST /login — authentication failed</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>web,authentication_failed,bruteforce,credential_access,</group>
   </rule>
 
   <rule id="100164" level="5">
     <if_sid>31108</if_sid>
     <match>POST /login</match>
     <description>HTTP: POST /login — authentication successful</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>web,authentication_success,valid_accounts,initial_access,</group>
   </rule>
 
+  <!-- Correlation: repeated failed HTTP login attempts. -->
+  <rule id="100167" level="8" frequency="5" timeframe="60">
+    <if_matched_sid>100163</if_matched_sid>
+    <same_source_ip />
+    <description>Possible brute force: multiple failed HTTP login attempts from same source IP</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>web,authentication_failed,bruteforce,credential_access,correlation,</group>
+  </rule>
+
+  <!-- Correlation: repeated failed CorpNet app logins. -->
+  <rule id="100168" level="8" frequency="5" timeframe="60">
+    <if_matched_sid>100165</if_matched_sid>
+    <description>Possible brute force: multiple failed CorpNet login attempts</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>corpnet,authentication_failed,bruteforce,credential_access,correlation,</group>
+  </rule>
+
+  <!-- Report upload / lab workflow rules -->
   <rule id="100162" level="4">
     <if_sid>31108</if_sid>
     <match>POST /reports/submit/</match>
     <description>Apache: POST request to /reports/submit/ — report submitted</description>
+    <group>web,report_submission,lab_workflow,</group>
   </rule>
 
   <rule id="100160" level="3">
     <if_sid>554</if_sid>
     <field name="file">/var/lib/reports/</field>
     <description>FIM: new file under /var/lib/reports/</description>
+    <group>fim,report_submission,lab_workflow,</group>
   </rule>
 
-  <rule id="100170" level="7">
-    <match>tar</match>
-    <description>System log: tar invoked</description>
+  <rule id="100199" level="7">
+    <if_sid>31101</if_sid>
+    <url>/lab1-demo</url>
+    <description>lab1 demo: someone hit /lab1-demo</description>
+    <group>web,lab_demo,</group>
+  </rule>
+
+  <!-- Reconnaissance and noise handling -->
+  <rule id="100201" level="10" frequency="8" timeframe="30">
+    <if_matched_sid>31101</if_matched_sid>
+    <same_source_ip />
+    <description>Web Reconnaissance: Multiple 404 errors from same IP</description>
+    <mitre>
+      <id>T1595</id>
+    </mitre>
+    <group>web,reconnaissance,active_scanning,</group>
+  </rule>
+
+  <rule id="100202" level="0">
+    <if_sid>31101</if_sid>
+    <url>^/status$</url>
+    <description>Suppress 404 for /status health-check path</description>
+    <group>noise_suppression,health_check,</group>
+  </rule>
+
+  <!-- Suppress recurring benign /server-status access-log alerts returning 403. -->
+  <rule id="100203" level="0">
+    <if_sid>31516</if_sid>
+    <match>GET /server-status HTTP/1.1&quot; 403</match>
+    <description>Suppress known-benign Apache server-status access check returning 403</description>
+    <group>noise_suppression,apache,server_status,health_check,</group>
+  </rule>
+
+  <!-- Suppress matching Apache error-log alerts for denied /server-status. -->
+  <rule id="100305" level="0">
+    <if_sid>30305</if_sid>
+    <match>client denied by server configuration: /var/www/html/server-status</match>
+    <description>Suppress known-benign Apache server-status denied-by-configuration event</description>
+    <group>noise_suppression,apache,server_status,health_check,</group>
   </rule>
 
 </group>
